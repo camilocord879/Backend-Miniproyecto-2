@@ -1,6 +1,6 @@
 import http from "http";
 import dotenv from "dotenv";
-
+import "./config/firebase";
 import app from "./app";
 import { initializeSocket } from "./socket";
 
