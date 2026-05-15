@@ -18,7 +18,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *       200:
  *         description: Servidor funcionando correctamente
  */
-
+app.get("/", (req, res) => {
+  res.send("Backend funcionando correctamente");
+});
 app.get("/ping", (_req, res) => {
   res.json({
     message: "Servidor funcionando correctamente"
