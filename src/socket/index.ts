@@ -1,25 +1,22 @@
 import { Server } from "socket.io";
 import { Server as HttpServer } from "http";
+import { setIO } from "./store";
 
 export const initializeSocket = (httpServer: HttpServer) => {
-
   const io = new Server(httpServer, {
     cors: {
-      origin: "*"
-    }
+      origin: "*",
+    },
   });
 
+  setIO(io);
+
   io.on("connection", (socket) => {
-
     console.log(`Cliente conectado: ${socket.id}`);
-
-    // Evento de prueba
-    socket.emit("message", "Conexion exitosa con Socket.IO");
 
     socket.on("disconnect", () => {
       console.log(`Cliente desconectado: ${socket.id}`);
     });
-
   });
 
   console.log("Socket.IO activo");

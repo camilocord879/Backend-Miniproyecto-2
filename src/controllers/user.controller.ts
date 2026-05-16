@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { createUser as createUserService } from "../services/user.service";
 import { db } from "../config/firebase";
 import { getAllUsers } from "../services/user.service";
-
+import {getIO} from "../socket/store";
 export const getUsers = async (_req: Request, res: Response) => {
   try {
     const users = await getAllUsers();
@@ -20,6 +20,8 @@ export const createUser = async (req: Request, res: Response) => {
   try {
     const user = await createUserService(req.body);
 
+    getIO().emit("userCreated", user);
+
     res.status(201).json({
       message: "Usuario creado",
       user,
@@ -34,7 +36,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const registerUser = async (req: Request, res: Response) => {
   try {
     const user = await createUserService(req.body);
-
+    getIO().emit("userCreated", user);
     res.status(201).json({
       message: "Usuario creado",
       user,
@@ -86,9 +88,12 @@ export const deleteUser = async (req: Request, res: Response) => {
 
     await docRef.delete();
 
+    getIO().emit("userDeleted", { id });
+
     res.status(200).json({
       message: "Usuario eliminado correctamente",
     });
+
   } catch (error) {
     res.status(500).json({
       message: "Error eliminando usuario",
@@ -115,13 +120,18 @@ export const updateUser = async (req: Request, res: Response) => {
 
     const updatedDoc = await docRef.get();
 
+    const updatedUser = {
+      ...updatedDoc.data(),
+      firestoreId: updatedDoc.id,
+    };
+
+    getIO().emit("userUpdated", updatedUser);
+
     res.status(200).json({
       message: "Usuario actualizado",
-      user: {
-        ...updatedDoc.data(),
-        firestoreId: updatedDoc.id,
-      },
+      user: updatedUser,
     });
+
   } catch (error) {
     res.status(500).json({
       message: "Error actualizando usuario",
