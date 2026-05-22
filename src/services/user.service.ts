@@ -1,59 +1,72 @@
+import { updateUserProfile, deleteUser, getUserByUID } from "../auth/auth.services";
 import { db } from "../config/firebase";
 import { User } from "../models/user.model";
 
-const usersCollection = db.collection("users");
+/**
+ * Obtener perfil del usuario
+ */
+export const getUserProfile = async (uid: string) => {
+  return await getUserByUID(uid);
+};
 
-export const createUser = async (user: User) => {
-  if (!user.username || user.username.trim() === "") {
-  throw new Error("Username obligatorio");
-}
-  // verificar username repetido
-  const snapshot = await usersCollection
-    .where("username", "==", user.username)
+/**
+ * Actualizar perfil del usuario
+ */
+export const updateProfile = async (
+  uid: string,
+  updates: Partial<User>
+) => {
+  // Validaciones
+  if (updates.email) {
+    throw new Error("CANNOT_UPDATE_EMAIL");
+  }
+
+  if (updates.provider) {
+    throw new Error("CANNOT_UPDATE_PROVIDER");
+  }
+
+  if (updates.uid) {
+    throw new Error("CANNOT_UPDATE_UID");
+  }
+
+  if (updates.createdAt) {
+    throw new Error("CANNOT_UPDATE_CREATED_AT");
+  }
+
+  return await updateUserProfile(uid, updates);
+};
+
+/**
+ * Eliminar cuenta del usuario
+ */
+export const deleteAccount = async (uid: string) => {
+  return await deleteUser(uid);
+};
+
+/**
+ * Obtener todos los usuarios (solo admin)
+ */
+export const getAllUsers = async () => {
+  const snapshot = await db.collection("users").get();
+  const users: User[] = [];
+  snapshot.forEach((doc) => {
+    users.push(doc.data() as User);
+  });
+  return users;
+};
+
+/**
+ * Buscar usuario por username
+ */
+export const getUserByUsername = async (username: string) => {
+  const query = await db
+    .collection("users")
+    .where("username", "==", username.toLowerCase())
     .get();
 
-  if (!snapshot.empty) {
-    throw new Error("El username ya existe");
-  }
-  const emailExists = await usersCollection
-  .where("email", "==", user.email)
-  .get();
-
-if (!emailExists.empty) {
-  throw new Error("El email ya existe");
-}
-  // crear usuario
-  const docRef = await usersCollection.add({
-    ...user,
-    createdAt: new Date(),
-  });
-
-  return {
-    firestoreId: docRef.id,
-    ...user,
-  };
-};
-
-export const getAllUsers = async () => {
-
-  const snapshot = await usersCollection.get();
-
-  return snapshot.docs.map((doc) => ({
-    ...doc.data(),
-    firestoreId: doc.id,
-  }));
-};
-
-export const getUserById = async (id: string) => {
-
-  const doc = await usersCollection.doc(id).get();
-
-  if (!doc.exists) {
-    throw new Error("Usuario no encontrado");
+  if (query.empty) {
+    throw new Error("USER_NOT_FOUND");
   }
 
-  return {
-    ...doc.data(),
-    firestoreId: doc.id,
-  };
+  return query.docs[0].data() as User;
 };

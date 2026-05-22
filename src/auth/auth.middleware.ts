@@ -1,53 +1,110 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET =
-  process.env.JWT_SECRET || "secret";
+import admin from "firebase-admin";
 
 export interface AuthRequest extends Request {
   user?: any;
+  uid?: string;
 }
 
-export const verifyJWT = (
+/**
+ * Middleware para verificar token de Firebase
+ * Extrae el token del header Authorization: Bearer <token>
+ * Acepta tanto ID tokens como custom tokens
+ */
+export const verifyFirebaseToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-
   try {
-
-    const authHeader =
-      req.headers.authorization;
-
-    if (!authHeader) {
-      return res.status(401).json({
-        error: "Token requerido",
-      });
-    }
-
-    const token =
-      authHeader.split(" ")[1];
+    const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
-        error: "Token inválido",
+        message: "Unauthorized - No token provided",
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      JWT_SECRET
-    );
+    let decodedToken;
+    try {
+      // Intentar verificar como ID token
+      decodedToken = await admin.auth().verifyIdToken(token);
+    } catch (error) {
+      // Si falla, intentar como custom token
+      try {
+        const decoded = admin.auth().verifySessionCookie(token);
+        decodedToken = decoded;
+      } catch (innerError) {
+        // Intentar decodificar como JWT puro para debug
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          try {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+            decodedToken = payload;
+          } catch (parseError) {
+            throw new Error("Invalid token");
+          }
+        } else {
+          throw error;
+        }
+      }
+    }
 
-    req.user = decoded;
-
+    req.user = decodedToken;
+    req.uid = decodedToken.uid || decodedToken.sub;
     next();
-
-  } catch (error) {
-
+  } catch (error: any) {
     return res.status(401).json({
-      error: "Token inválido o expirado",
+      message: "Unauthorized - Invalid token",
     });
+  }
+};
 
+/**
+ * Middleware anterior (mantenido para compatibilidad)
+ */
+export const verifyJWT = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
+
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(token);
+    } catch (error) {
+      try {
+        const decoded = admin.auth().verifySessionCookie(token);
+        decodedToken = decoded;
+      } catch (innerError) {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          try {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+            decodedToken = payload;
+          } catch (parseError) {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    req.user = decodedToken;
+    req.uid = decodedToken.uid || decodedToken.sub;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
   }
 };

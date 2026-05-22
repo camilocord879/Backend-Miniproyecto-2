@@ -1,83 +1,95 @@
 import { Router } from "express";
-import { verifyToken } from "../middleware/auth.middleware";
+import { verifyFirebaseToken } from "../auth/auth.middleware";
 import {
-  registerUser,
+  getProfile,
+  updateMyProfile,
+  deleteMyAccount,
   getUsers,
-  getUserById,
-  deleteUser,
-  updateUser,
 } from "../controllers/user.controller";
 
 const router = Router();
 
-router.post("/register", registerUser);
-
-router.get("/",  getUsers);
-
-router.get("/:id", getUserById);
-
-router.patch("/:id", verifyToken, updateUser);
-
-router.delete("/:id", verifyToken, deleteUser);
 /**
  * @swagger
- * /api/users/register:
- *   post:
- *     summary: Crear usuario
- *     tags:
- *       - Users
+ * /api/users/me:
+ *   get:
+ *     summary: Obtener perfil del usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
- *       201:
- *         description: Usuario creado
+ *       200:
+ *         description: Perfil del usuario
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Usuario no encontrado
  */
+router.get("/me", verifyFirebaseToken, getProfile);
+
 /**
  * @swagger
- * responses:
- *   400:
- *     description: Error de validación
- */
-/**
- * @swagger
- * /api/users/{id}:
+ * /api/users/me:
  *   patch:
- *     summary: Actualizar usuario
- *     tags:
- *       - Users
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *     summary: Actualizar perfil del usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/User'
+ *             type: object
+ *             properties:
+ *               names:
+ *                 type: string
+ *               lastNames:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               avatar:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Usuario actualizado correctamente
- *       404:
- *         description: Usuario no encontrado
+ *         description: Perfil actualizado exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado
+ *       409:
+ *         description: Username ya existe
  */
+router.patch("/me", verifyFirebaseToken, updateMyProfile);
+
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/users/me:
  *   delete:
- *     summary: Eliminar usuario
- *     tags:
- *       - Users
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *     summary: Eliminar cuenta del usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Usuario eliminado correctamente
- *       404:
- *         description: Usuario no encontrado
+ *         description: Cuenta eliminada exitosamente
+ *       401:
+ *         description: No autorizado
  */
+router.delete("/me", verifyFirebaseToken, deleteMyAccount);
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Obtener todos los usuarios
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios
+ *       500:
+ *         description: Error interno
+ */
+router.get("/", getUsers);
+
 export default router;

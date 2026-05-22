@@ -1,92 +1,331 @@
 import { Request, Response } from "express";
+import { ZodError } from "zod";
+
 import {
-  loginUser,
   registerUser,
+  loginUser,
+  googleLogin,
+  completeGoogleProfile,
+  getUserByUID,
+  verifyFirebaseToken as verifyFirebaseTokenService,
+  updateUserProfile,
+  deleteUser,
 } from "./auth.services";
+
+import {
+  registerSchema,
+  loginSchema,
+  completeGoogleProfileSchema,
+  googleAuthSchema,
+  updateProfileSchema,
+} from "./schemas";
+
 import { AuthRequest } from "./auth.middleware";
+
+/**
+ * REGISTER
+ */
 export const register = async (
   req: Request,
   res: Response
 ) => {
-
   try {
+    const data = registerSchema.parse(req.body);
 
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        error: "Email y password son obligatorios",
-      });
-    }
-
-    const user = await registerUser(
-      email,
-      password
-    );
+    const result = await registerUser(data);
 
     return res.status(201).json({
-      message: "Usuario creado correctamente",
-      user,
+      message: "User created successfully",
+      uid: result.uid,
     });
 
   } catch (error: any) {
 
-    if (error.message === "EMAIL_EXISTS") {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: "Validation error",
+        details: error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      });
+    }
+
+    if (error.message === "USERNAME_ALREADY_EXISTS") {
       return res.status(409).json({
-        error: "El correo ya está registrado",
+        error: "Username already exists",
+      });
+    }
+
+    if (error.message === "EMAIL_ALREADY_EXISTS") {
+      return res.status(409).json({
+        error: "Email already exists",
       });
     }
 
     return res.status(500).json({
-      error: "Error interno del servidor",
+      error: "Internal server error",
     });
   }
 };
 
+/**
+ * LOGIN
+ */
 export const login = async (
   req: Request,
   res: Response
 ) => {
-
   try {
 
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        error: "Email y password son obligatorios",
-      });
-    }
+    const data = loginSchema.parse(req.body);
 
     const result = await loginUser(
-      email,
-      password
+      data.email,
+      data.password
     );
 
     return res.status(200).json(result);
 
   } catch (error: any) {
 
-    if (
-      error.message === "INVALID_CREDENTIALS"
-    ) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: "Validation error",
+        details: error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      });
+    }
+
+    if (error.message === "INVALID_CREDENTIALS") {
       return res.status(401).json({
-        error: "Credenciales inválidas",
+        error: "Invalid credentials",
       });
     }
 
     return res.status(500).json({
-      error: "Error interno del servidor",
+      error: "Internal server error",
     });
   }
 };
-export const me = (
+
+/**
+ * GOOGLE AUTH
+ */
+export const googleAuth = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+
+    const data = googleAuthSchema.parse(req.body);
+
+    const decodedToken =
+      await verifyFirebaseTokenService(data.idToken);
+
+    const result = await googleLogin(
+      decodedToken.uid,
+      decodedToken.email || ""
+    );
+
+    return res.status(200).json(result);
+
+  } catch (error: any) {
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: "Validation error",
+        details: error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      });
+    }
+
+    if (error.message === "INVALID_TOKEN") {
+      return res.status(401).json({
+        error: "Invalid token",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * COMPLETE GOOGLE PROFILE
+ */
+export const completeGoogleAuth = async (
   req: AuthRequest,
   res: Response
 ) => {
+  try {
 
-  return res.status(200).json({
-    user: req.user,
-  });
+    const data =
+      completeGoogleProfileSchema.parse(req.body);
 
+    const uid = req.uid;
+
+    if (!uid) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const user = await getUserByUID(uid);
+
+    const result = await completeGoogleProfile(
+      uid,
+      data.username,
+      user.email
+    );
+
+    return res.status(200).json(result);
+
+  } catch (error: any) {
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: "Validation error",
+        details: error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      });
+    }
+
+    if (error.message === "USERNAME_ALREADY_EXISTS") {
+      return res.status(409).json({
+        error: "Username already exists",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * GET ME
+ */
+export const me = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+
+    const uid = req.uid;
+
+    if (!uid) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const user = await getUserByUID(uid);
+
+    return res.status(200).json({
+      user,
+    });
+
+  } catch (error: any) {
+
+    if (error.message === "USER_NOT_FOUND") {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * UPDATE PROFILE
+ */
+export const updateProfile = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+
+    const uid = req.uid;
+
+    if (!uid) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const data =
+      updateProfileSchema.parse(req.body);
+
+    const updatedUser =
+      await updateUserProfile(uid, data);
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+
+  } catch (error: any) {
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: "Validation error",
+        details: error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      });
+    }
+
+    if (error.message === "USERNAME_ALREADY_EXISTS") {
+      return res.status(409).json({
+        error: "Username already exists",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * DELETE ACCOUNT
+ */
+export const deleteAccount = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+
+    const uid = req.uid;
+
+    if (!uid) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    await deleteUser(uid);
+
+    return res.status(200).json({
+      message: "User deleted successfully",
+    });
+
+  } catch (error: any) {
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
 };
