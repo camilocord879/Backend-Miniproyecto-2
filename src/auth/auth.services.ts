@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import admin from "firebase-admin";
 import { db } from "../config/firebase";
 import { RegisterDTO } from "./auth.dto";
@@ -66,6 +67,7 @@ export const registerUser = async (
    */
   const userProfile: User = {
     uid: userRecord.uid,
+    firestoreId: randomUUID(),
     names,
     lastNames,
     username: username.toLowerCase(),
@@ -273,6 +275,8 @@ export const completeGoogleProfile = async (
    */
   const userProfile: User = {
     uid,
+
+    firestoreId: randomUUID(),
 
     names:
       userRecord.displayName?.split(" ")[0] || "",

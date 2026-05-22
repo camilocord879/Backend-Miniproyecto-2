@@ -1,5 +1,6 @@
 export interface User {
   uid: string;
+  firestoreId: string;
   names: string;
   lastNames: string;
   username: string;
