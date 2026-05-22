@@ -14,3 +14,11 @@ admin.initializeApp({
 export const db = admin.firestore();
 
 console.log("Firebase conectado correctamente");
+console.log(
+  "🔥 Firebase Project:",
+  process.env.FIREBASE_PROJECT_ID
+);
+console.log(
+  "🔥 Firebase Client Email:",
+  process.env.FIREBASE_CLIENT_EMAIL
+);

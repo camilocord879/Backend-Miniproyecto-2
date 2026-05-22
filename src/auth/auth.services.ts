@@ -21,6 +21,8 @@ export const registerUser = async (
     password,
   } = data;
 
+  console.log("📝 Attempting to register user:", { email, username });
+
   /**
    * Validar username único
    */
@@ -30,6 +32,7 @@ export const registerUser = async (
     .get();
 
   if (!usernameQuery.empty) {
+    console.error("❌ Username already exists:", username);
     throw new Error("USERNAME_ALREADY_EXISTS");
   }
 
@@ -45,12 +48,16 @@ export const registerUser = async (
       password,
     });
 
+    console.log("✅ User created in Firebase Auth:", userRecord.uid);
+
   } catch (error: any) {
 
     if (error.code === "auth/email-already-exists") {
+      console.error("❌ Email already exists in Firebase:", email);
       throw new Error("EMAIL_ALREADY_EXISTS");
     }
 
+    console.error("❌ Firebase Auth error:", error.message);
     throw error;
   }
 
@@ -71,14 +78,36 @@ export const registerUser = async (
   /**
    * Guardar perfil
    */
-  await db
-    .collection("users")
-    .doc(userRecord.uid)
-    .set(userProfile);
+  try {
+    await db
+      .collection("users")
+      .doc(userRecord.uid)
+      .set(userProfile);
+    
+    console.log("✅ User profile saved to Firestore:", userRecord.uid);
+  } catch (error: any) {
+    console.error("❌ Error saving user profile to Firestore:", error.message);
+    throw new Error("ERROR_SAVING_PROFILE");
+  }
+
+  /**
+   * Generar token personalizado
+   */
+  const customToken = await admin
+    .auth()
+    .createCustomToken(userRecord.uid);
 
   return {
+    token: customToken,
     uid: userRecord.uid,
-    message: "User created successfully",
+    user: {
+      uid: userRecord.uid,
+      names: userProfile.names,
+      lastNames: userProfile.lastNames,
+      username: userProfile.username,
+      email: userProfile.email,
+      avatar: userProfile.avatar,
+    },
   };
 };
 
@@ -268,10 +297,17 @@ export const completeGoogleProfile = async (
   /**
    * Guardar perfil
    */
-  await db
-    .collection("users")
-    .doc(uid)
-    .set(userProfile);
+  try {
+    await db
+      .collection("users")
+      .doc(uid)
+      .set(userProfile);
+    
+    console.log("✅ Google profile completed and saved:", uid);
+  } catch (error: any) {
+    console.error("❌ Error saving Google profile to Firestore:", error.message);
+    throw new Error("ERROR_SAVING_PROFILE");
+  }
 
   return {
     uid,
@@ -381,5 +417,41 @@ export const deleteUser = async (
 
   return {
     message: "User deleted successfully",
+  };
+};
+
+/**
+ * =========================================
+ * Verificar disponibilidad de email
+ * =========================================
+ */
+export const checkEmailAvailability = async (
+  email: string
+): Promise<{ available: boolean }> => {
+  const userQuery = await db
+    .collection("users")
+    .where("email", "==", email)
+    .get();
+
+  return {
+    available: userQuery.empty,
+  };
+};
+
+/**
+ * =========================================
+ * Verificar disponibilidad de username
+ * =========================================
+ */
+export const checkUsernameAvailability = async (
+  username: string
+): Promise<{ available: boolean }> => {
+  const usernameQuery = await db
+    .collection("users")
+    .where("username", "==", username.toLowerCase())
+    .get();
+
+  return {
+    available: usernameQuery.empty,
   };
 };

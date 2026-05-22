@@ -10,6 +10,8 @@ import {
   verifyFirebaseToken as verifyFirebaseTokenService,
   updateUserProfile,
   deleteUser,
+  checkEmailAvailability,
+  checkUsernameAvailability,
 } from "./auth.services";
 
 import {
@@ -36,7 +38,9 @@ export const register = async (
 
     return res.status(201).json({
       message: "User created successfully",
+      token: result.token,
       uid: result.uid,
+      user: result.user,
     });
 
   } catch (error: any) {
@@ -324,6 +328,60 @@ export const deleteAccount = async (
 
   } catch (error: any) {
 
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * CHECK EMAIL AVAILABILITY
+ */
+export const checkEmail = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({
+        error: "Email is required",
+      });
+    }
+
+    const result = await checkEmailAvailability(email);
+
+    return res.status(200).json(result);
+
+  } catch (error: any) {
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * CHECK USERNAME AVAILABILITY
+ */
+export const checkUsername = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { username } = req.query;
+
+    if (!username || typeof username !== "string") {
+      return res.status(400).json({
+        error: "Username is required",
+      });
+    }
+
+    const result = await checkUsernameAvailability(username);
+
+    return res.status(200).json(result);
+
+  } catch (error: any) {
     return res.status(500).json({
       error: "Internal server error",
     });
