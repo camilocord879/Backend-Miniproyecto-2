@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { ZodError } from "zod";
+import admin from "firebase-admin";
 
 import {
   registerUser,
@@ -180,12 +181,13 @@ export const completeGoogleAuth = async (
       });
     }
 
-    const user = await getUserByUID(uid);
+    // Obtener el email de Firebase Auth (usuario ya existe en Auth, solo falta su perfil en Firestore)
+    const userRecord = await admin.auth().getUser(uid);
 
     const result = await completeGoogleProfile(
       uid,
       data.username,
-      user.email
+      userRecord.email || ""
     );
 
     return res.status(200).json(result);
