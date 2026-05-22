@@ -1,7 +1,11 @@
 export interface User {
-  id?: string;
+  uid: string;
+  names: string;
+  lastNames: string;
   username: string;
   email: string;
-  password: string;
+  avatar: string;
+  provider: "manual" | "google";
   createdAt: Date;
+  updatedAt?: Date;
 }

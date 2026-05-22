@@ -4,6 +4,7 @@ import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./docs/swagger";
 import userRoutes from "./routes/user.route";
 import authRoutes from "./auth/auth.routes";
+import { errorMiddleware } from "./middleware/error.middleware";
 const app = express();
 
 app.use(cors());
@@ -11,6 +12,9 @@ app.use(express.json());
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
+
+app.use(errorMiddleware);
 /**
  * @swagger
  * /ping:
