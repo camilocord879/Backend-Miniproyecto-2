@@ -3,6 +3,7 @@ import admin from "firebase-admin";
 import { db } from "../config/firebase";
 import { RegisterDTO } from "./auth.dto";
 import { User } from "../models/user.model";
+import { isInstitutionalEmail } from "../utils/isInstitutionalEmail";
 
 /**
  * =========================================
@@ -23,7 +24,34 @@ export const registerUser = async (
   } = data;
 
   console.log("📝 Attempting to register user:", { email, username });
+  /**
+   * Validar correo institucional
+  */
+  if (!isInstitutionalEmail(email)) {
 
+    throw new Error("INVALID_INSTITUTIONAL_EMAIL");
+
+  }
+  /**
+  * Avatares permitidos
+  */
+  const allowedAvatars = [
+    "/avatars/avatar1.png",
+    "/avatars/avatar2.png",
+    "/avatars/avatar3.png",
+    "/avatars/avatar4.png",
+    "/avatars/avatar5.png",
+    "/avatars/avatar6.png",
+  ];
+
+/**
+ * Validar avatar
+ */
+if (!allowedAvatars.includes(avatar)) {
+
+  throw new Error("INVALID_AVATAR");
+
+}
   /**
    * Validar username único
    */
@@ -198,7 +226,14 @@ export const googleLogin = async (
   uid: string,
   email: string
 ) => {
+  /**
+  * Validar correo institucional
+  */
+  if (!isInstitutionalEmail(email)) {
 
+    throw new Error("INVALID_INSTITUTIONAL_EMAIL");
+
+  }
   /**
    * Revisar si ya existe perfil
    */
@@ -291,7 +326,7 @@ export const completeGoogleProfile = async (
 
     email,
 
-    avatar: userRecord.photoURL || "",
+    avatar: "/avatars/avatar1.png",
 
     provider: "google",
 
@@ -355,6 +390,39 @@ export const updateUserProfile = async (
    * Validar username único
    */
   if (updates.username) {
+    /**
+ * Validar email institucional
+ */
+if (
+  updates.email &&
+  !isInstitutionalEmail(updates.email)
+) {
+
+  throw new Error("INVALID_INSTITUTIONAL_EMAIL");
+
+}
+
+  /**
+  * Validar avatar permitido
+  */
+  if (updates.avatar) {
+
+  const allowedAvatars = [
+    "/avatars/avatar1.png",
+    "/avatars/avatar2.png",
+    "/avatars/avatar3.png",
+    "/avatars/avatar4.png",
+    "/avatars/avatar5.png",
+    "/avatars/avatar6.png",
+  ];
+
+  if (!allowedAvatars.includes(updates.avatar)) {
+
+    throw new Error("INVALID_AVATAR");
+
+    }
+
+  }
 
     const usernameQuery = await db
       .collection("users")
