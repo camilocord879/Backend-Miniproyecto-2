@@ -5,6 +5,7 @@ import axios from "axios";
 import { db } from "../config/firebase";
 import { RegisterDTO } from "./auth.dto";
 import { User } from "../models/user.model";
+import { isInstitutionalEmail } from "../utils/isInstitutionalEmail";
 
 /**
  * =========================================
@@ -29,6 +30,7 @@ export const registerUser = async (
     { email, username }
   );
 
+}
   /**
    * Validar username único
    */
@@ -297,6 +299,12 @@ export const googleLogin = async (
   uid: string,
   email: string
 ) => {
+  /**
+  * Validar correo institucional
+  */
+  if (!isInstitutionalEmail(email)) {
+
+    throw new Error("INVALID_INSTITUTIONAL_EMAIL");
 
   const userDoc = await db
     .collection("users")
