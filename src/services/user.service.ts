@@ -1,12 +1,22 @@
-import { updateUserProfile, deleteUser, getUserByUID } from "../auth/auth.services";
+import admin from "firebase-admin";
+
+import {
+  updateUserProfile,
+  getUserByUID
+} from "../auth/auth.services";
+
 import { db } from "../config/firebase";
 import { User } from "../models/user.model";
 
 /**
  * Obtener perfil del usuario
  */
-export const getUserProfile = async (uid: string) => {
+export const getUserProfile = async (
+  uid: string
+) => {
+
   return await getUserByUID(uid);
+
 };
 
 /**
@@ -16,7 +26,9 @@ export const updateProfile = async (
   uid: string,
   updates: Partial<User>
 ) => {
+
   // Validaciones
+
   if (updates.email) {
     throw new Error("CANNOT_UPDATE_EMAIL");
   }
@@ -33,40 +45,77 @@ export const updateProfile = async (
     throw new Error("CANNOT_UPDATE_CREATED_AT");
   }
 
-  return await updateUserProfile(uid, updates);
+  return await updateUserProfile(
+    uid,
+    updates
+  );
+
 };
 
 /**
  * Eliminar cuenta del usuario
  */
-export const deleteAccount = async (uid: string) => {
-  return await deleteUser(uid);
+export const deleteUserAccount = async (
+  uid: string
+): Promise<void> => {
+
+  // Eliminar documento Firestore
+
+  await db
+    .collection("users")
+    .doc(uid)
+    .delete();
+
+  // Eliminar usuario Auth Firebase
+
+  await admin.auth().deleteUser(uid);
+
 };
 
 /**
- * Obtener todos los usuarios (solo admin)
+ * Obtener todos los usuarios
  */
 export const getAllUsers = async () => {
-  const snapshot = await db.collection("users").get();
+
+  const snapshot = await db
+    .collection("users")
+    .get();
+
   const users: User[] = [];
+
   snapshot.forEach((doc) => {
-    users.push(doc.data() as User);
+
+    users.push(
+      doc.data() as User
+    );
+
   });
+
   return users;
+
 };
 
 /**
  * Buscar usuario por username
  */
-export const getUserByUsername = async (username: string) => {
+export const getUserByUsername = async (
+  username: string
+) => {
+
   const query = await db
     .collection("users")
-    .where("username", "==", username.toLowerCase())
+    .where(
+      "username",
+      "==",
+      username.toLowerCase()
+    )
     .get();
 
   if (query.empty) {
     throw new Error("USER_NOT_FOUND");
   }
 
-  return query.docs[0].data() as User;
+  return query.docs[0]
+    .data() as User;
+
 };

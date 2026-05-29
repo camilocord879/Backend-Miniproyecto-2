@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import {
   getUserProfile,
   updateProfile,
-  deleteAccount,
+  deleteUserAccount,
   getAllUsers,
 } from "../services/user.service";
 
@@ -120,7 +120,7 @@ export const deleteMyAccount = async (
       });
     }
 
-    await deleteAccount(uid);
+    await deleteUserAccount(uid);
 
     return res.status(200).json({
       message: "Account deleted successfully",
