@@ -7,7 +7,6 @@ import {
 
 import { db } from "../config/firebase";
 import { User } from "../models/user.model";
-
 /**
  * Obtener perfil del usuario
  */

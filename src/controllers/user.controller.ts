@@ -67,6 +67,12 @@ export const updateMyProfile = async (
       user: updatedUser,
     });
   } catch (error: any) {
+    console.error(
+    "DELETE ACCOUNT ERROR:",
+    error
+  );
+
+
     if (error.message === "CANNOT_UPDATE_EMAIL") {
       return res.status(400).json({
         error: "Cannot update email",
