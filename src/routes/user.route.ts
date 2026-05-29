@@ -90,6 +90,6 @@ router.delete("/me", verifyFirebaseToken, deleteMyAccount);
  *       500:
  *         description: Error interno
  */
-router.get("/", getUsers);
+router.get("/", verifyFirebaseToken, getUsers);
 
 export default router;

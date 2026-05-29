@@ -1,15 +1,26 @@
 import { Request, Response, NextFunction } from "express";
 import admin from "firebase-admin";
+import type { DecodedIdToken } from "firebase-admin/auth";
+
+declare global {
+  namespace Express {
+    interface Request {
+      user: DecodedIdToken;
+      uid?: string;
+    }
+  }
+}
 
 export interface AuthRequest extends Request {
-  user?: any;
+  user: DecodedIdToken;
   uid?: string;
 }
 
 /**
- * Middleware para verificar token de Firebase
+ * Middleware para verificar Firebase ID Token
  * Extrae el token del header Authorization: Bearer <token>
- * Acepta tanto ID tokens como custom tokens
+ * IMPORTANTE: Debe ser un ID Token (generado por getIdToken()),
+ * NO un custom token (createCustomToken)
  */
 export const verifyFirebaseToken = async (
   req: AuthRequest,
@@ -17,7 +28,23 @@ export const verifyFirebaseToken = async (
   next: NextFunction
 ) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    const authHeader = req.headers.authorization;
+
+if (!authHeader?.startsWith("Bearer ")) {
+  return res.status(401).json({
+    success: false,
+    message: "Unauthorized"
+  });
+}
+
+const token = authHeader.split(" ")[1];
+
+if (!token) {
+  return res.status(401).json({
+    success: false,
+    message: "Token missing"
+  });
+}
 
     if (!token) {
       return res.status(401).json({
@@ -25,37 +52,23 @@ export const verifyFirebaseToken = async (
       });
     }
 
-    let decodedToken;
-    try {
-      // Intentar verificar como ID token
-      decodedToken = await admin.auth().verifyIdToken(token);
-    } catch (error) {
-      // Si falla, intentar como custom token
-      try {
-        const decoded = admin.auth().verifySessionCookie(token);
-        decodedToken = decoded;
-      } catch (innerError) {
-        // Intentar decodificar como JWT puro para debug
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          try {
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-            decodedToken = payload;
-          } catch (parseError) {
-            throw new Error("Invalid token");
-          }
-        } else {
-          throw error;
-        }
-      }
-    }
+    // Verificar como ID Token de Firebase
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    
+    console.log("✅ ID Token verificado:", {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+    });
 
     req.user = decodedToken;
-    req.uid = decodedToken.uid || decodedToken.sub;
+    req.uid = decodedToken.uid;
+
     next();
   } catch (error: any) {
+    console.error("❌ Token inválido:", error.message);
     return res.status(401).json({
       message: "Unauthorized - Invalid token",
+      error: error.message,
     });
   }
 };
@@ -69,7 +82,23 @@ export const verifyJWT = async (
   next: NextFunction
 ) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    const authHeader = req.headers.authorization;
+
+if (!authHeader?.startsWith("Bearer ")) {
+  return res.status(401).json({
+    success: false,
+    message: "Unauthorized"
+  });
+}
+
+const token = authHeader.split(" ")[1];
+
+if (!token) {
+  return res.status(401).json({
+    success: false,
+    message: "Token missing"
+  });
+}
 
     if (!token) {
       return res.status(401).json({

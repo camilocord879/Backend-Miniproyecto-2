@@ -26,6 +26,11 @@ const options = {
           description: "Firebase ID Token",
         },
       },
+      security: [
+    {
+      bearerAuth: [],
+    },
+  ],
 
       schemas: {
         User: {

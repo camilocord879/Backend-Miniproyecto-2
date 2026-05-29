@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
 import admin from "firebase-admin";
+import axios from "axios";
+
 import { db } from "../config/firebase";
 import { RegisterDTO } from "./auth.dto";
 import { User } from "../models/user.model";
@@ -22,95 +24,178 @@ export const registerUser = async (
     password,
   } = data;
 
-  console.log("📝 Attempting to register user:", { email, username });
+  console.log(
+    "📝 Attempting to register user:",
+    { email, username }
+  );
 
   /**
    * Validar username único
    */
   const usernameQuery = await db
     .collection("users")
-    .where("username", "==", username.toLowerCase())
+    .where(
+      "username",
+      "==",
+      username.toLowerCase()
+    )
     .get();
 
   if (!usernameQuery.empty) {
-    console.error("❌ Username already exists:", username);
-    throw new Error("USERNAME_ALREADY_EXISTS");
+
+    console.error(
+      "❌ Username already exists:",
+      username
+    );
+
+    throw new Error(
+      "USERNAME_ALREADY_EXISTS"
+    );
+
   }
 
   /**
-   * Crear usuario en Firebase Auth
+   * Crear usuario Firebase Auth
    */
   let userRecord;
 
   try {
 
-    userRecord = await admin.auth().createUser({
-      email,
-      password,
-    });
+    userRecord = await admin
+      .auth()
+      .createUser({
+        email,
+        password,
+      });
 
-    console.log("✅ User created in Firebase Auth:", userRecord.uid);
+    console.log(
+      "✅ User created in Firebase Auth:",
+      userRecord.uid
+    );
 
   } catch (error: any) {
 
-    if (error.code === "auth/email-already-exists") {
-      console.error("❌ Email already exists in Firebase:", email);
-      throw new Error("EMAIL_ALREADY_EXISTS");
+    if (
+      error.code ===
+      "auth/email-already-exists"
+    ) {
+
+      console.error(
+        "❌ Email already exists:",
+        email
+      );
+
+      throw new Error(
+        "EMAIL_ALREADY_EXISTS"
+      );
+
     }
 
-    console.error("❌ Firebase Auth error:", error.message);
+    console.error(
+      "❌ Firebase Auth error:",
+      error.message
+    );
+
     throw error;
+
   }
 
   /**
-   * Crear perfil Firestore
+   * Perfil Firestore
    */
   const userProfile: User = {
+
     uid: userRecord.uid,
+
     firestoreId: randomUUID(),
+
     names,
+
     lastNames,
-    username: username.toLowerCase(),
+
+    username:
+      username.toLowerCase(),
+
     email,
+
     avatar,
+
     provider: "manual",
+
     createdAt: new Date(),
+
   };
 
   /**
    * Guardar perfil
    */
   try {
+
     await db
       .collection("users")
       .doc(userRecord.uid)
       .set(userProfile);
-    
-    console.log("✅ User profile saved to Firestore:", userRecord.uid);
+
+    console.log(
+      "✅ User profile saved:",
+      userRecord.uid
+    );
+
   } catch (error: any) {
-    console.error("❌ Error saving user profile to Firestore:", error.message);
-    throw new Error("ERROR_SAVING_PROFILE");
+
+    console.error(
+      "❌ Error saving profile:",
+      error.message
+    );
+
+    throw new Error(
+      "ERROR_SAVING_PROFILE"
+    );
+
   }
 
   /**
-   * Generar token personalizado
+   * Login automático
+   * Obtener ID TOKEN REAL
    */
-  const customToken = await admin
-    .auth()
-    .createCustomToken(userRecord.uid);
+  const loginResponse =
+    await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY}`,
+      {
+        email,
+        password,
+        returnSecureToken: true,
+      }
+    );
+
+  const authData =
+    loginResponse.data;
 
   return {
-    token: customToken,
+
+    token:
+      authData.idToken,
+
+    refreshToken:
+      authData.refreshToken,
+
     uid: userRecord.uid,
+
     user: {
       uid: userRecord.uid,
       names: userProfile.names,
-      lastNames: userProfile.lastNames,
-      username: userProfile.username,
-      email: userProfile.email,
-      avatar: userProfile.avatar,
+      lastNames:
+        userProfile.lastNames,
+      username:
+        userProfile.username,
+      email:
+        userProfile.email,
+      avatar:
+        userProfile.avatar,
     },
+
   };
+
 };
 
 /**
@@ -123,47 +208,53 @@ export const loginUser = async (
   password: string
 ) => {
 
-  /**
-   * Buscar usuario por email
-   */
-  const userQuery = await db
-    .collection("users")
-    .where("email", "==", email)
-    .get();
+  try {
 
-  if (userQuery.empty) {
-    throw new Error("INVALID_CREDENTIALS");
+    const response =
+      await axios.post(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY}`,
+        {
+          email,
+          password,
+          returnSecureToken: true,
+        }
+      );
+
+    const data =
+      response.data;
+
+    const user =
+      await getUserByUID(
+        data.localId
+      );
+
+    return {
+
+      token:
+        data.idToken,
+
+      refreshToken:
+        data.refreshToken,
+
+      uid:
+        data.localId,
+
+      user,
+
+    };
+
+  } catch (error: any) {
+
+    console.error(
+      error.response?.data
+    );
+
+    throw new Error(
+      "INVALID_CREDENTIALS"
+    );
+
   }
 
-  const userDoc = userQuery.docs[0];
-
-  const user = userDoc.data() as User;
-
-  /**
-   * IMPORTANTE:
-   * Firebase Auth debería validar password
-   * desde frontend/client SDK.
-   * Esto es simplificado para Sprint 1.
-   */
-
-  const customToken = await admin
-    .auth()
-    .createCustomToken(user.uid);
-
-  return {
-    token: customToken,
-
-    uid: user.uid,
-
-    user: {
-      uid: user.uid,
-      names: user.names,
-      lastNames: user.lastNames,
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-    },
-  };
 };
 
 /**
@@ -171,23 +262,31 @@ export const loginUser = async (
  * Verificar Firebase ID Token
  * =========================================
  */
-export const verifyFirebaseToken = async (
-  idToken: string
-) => {
+export const verifyFirebaseToken =
+  async (
+    idToken: string
+  ) => {
 
-  try {
+    try {
 
-    const decodedToken = await admin
-      .auth()
-      .verifyIdToken(idToken);
+      const decodedToken =
+        await admin
+          .auth()
+          .verifyIdToken(
+            idToken
+          );
 
-    return decodedToken;
+      return decodedToken;
 
-  } catch (error) {
+    } catch (error) {
 
-    throw new Error("INVALID_TOKEN");
-  }
-};
+      throw new Error(
+        "INVALID_TOKEN"
+      );
+
+    }
+
+  };
 
 /**
  * =========================================
@@ -199,9 +298,6 @@ export const googleLogin = async (
   email: string
 ) => {
 
-  /**
-   * Revisar si ya existe perfil
-   */
   const userDoc = await db
     .collection("users")
     .doc(uid)
@@ -212,9 +308,11 @@ export const googleLogin = async (
    */
   if (userDoc.exists) {
 
-    const user = userDoc.data() as User;
+    const user =
+      userDoc.data() as User;
 
     return {
+
       needsUsername: false,
 
       uid: user.uid,
@@ -222,12 +320,18 @@ export const googleLogin = async (
       user: {
         uid: user.uid,
         names: user.names,
-        lastNames: user.lastNames,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar,
+        lastNames:
+          user.lastNames,
+        username:
+          user.username,
+        email:
+          user.email,
+        avatar:
+          user.avatar,
       },
+
     };
+
   }
 
   /**
@@ -238,6 +342,7 @@ export const googleLogin = async (
     uid,
     email,
   };
+
 };
 
 /**
@@ -245,155 +350,189 @@ export const googleLogin = async (
  * Completar perfil Google
  * =========================================
  */
-export const completeGoogleProfile = async (
-  uid: string,
-  username: string,
-  email: string
-) => {
+export const completeGoogleProfile =
+  async (
+    uid: string,
+    username: string,
+    email: string
+  ) => {
 
-  /**
-   * Validar username único
-   */
-  const usernameQuery = await db
-    .collection("users")
-    .where("username", "==", username.toLowerCase())
-    .get();
+    /**
+     * Validar username único
+     */
+    const usernameQuery =
+      await db
+        .collection("users")
+        .where(
+          "username",
+          "==",
+          username.toLowerCase()
+        )
+        .get();
 
-  if (!usernameQuery.empty) {
-    throw new Error("USERNAME_ALREADY_EXISTS");
-  }
+    if (!usernameQuery.empty) {
 
-  /**
-   * Obtener usuario Firebase
-   */
-  const userRecord = await admin
-    .auth()
-    .getUser(uid);
+      throw new Error(
+        "USERNAME_ALREADY_EXISTS"
+      );
 
-  /**
-   * Crear perfil
-   */
-  const userProfile: User = {
-    uid,
+    }
 
-    firestoreId: randomUUID(),
+    /**
+     * Obtener usuario Firebase
+     */
+    const userRecord =
+      await admin
+        .auth()
+        .getUser(uid);
 
-    names:
-      userRecord.displayName?.split(" ")[0] || "",
+    /**
+     * Crear perfil
+     */
+    const userProfile: User = {
 
-    lastNames:
-      userRecord.displayName
-        ?.split(" ")
-        .slice(1)
-        .join(" ") || "",
+      uid,
 
-    username: username.toLowerCase(),
+      firestoreId:
+        randomUUID(),
 
-    email,
+      names:
+        userRecord.displayName
+          ?.split(" ")[0] || "",
 
-    avatar: userRecord.photoURL || "",
+      lastNames:
+        userRecord.displayName
+          ?.split(" ")
+          .slice(1)
+          .join(" ") || "",
 
-    provider: "google",
+      username:
+        username.toLowerCase(),
 
-    createdAt: new Date(),
-  };
+      email,
 
-  /**
-   * Guardar perfil
-   */
-  try {
+      avatar:
+        userRecord.photoURL || "",
+
+      provider: "google",
+
+      createdAt:
+        new Date(),
+
+    };
+
+    /**
+     * Guardar perfil
+     */
     await db
       .collection("users")
       .doc(uid)
       .set(userProfile);
-    
-    console.log("✅ Google profile completed and saved:", uid);
-  } catch (error: any) {
-    console.error("❌ Error saving Google profile to Firestore:", error.message);
-    throw new Error("ERROR_SAVING_PROFILE");
-  }
 
-  return {
-    uid,
-    message: "Profile completed successfully",
-    user: userProfile,
+    return {
+
+      uid,
+
+      message:
+        "Profile completed successfully",
+
+      user: userProfile,
+
+    };
+
   };
-};
 
 /**
  * =========================================
  * Obtener usuario por UID
  * =========================================
  */
-export const getUserByUID = async (
-  uid: string
-) => {
+export const getUserByUID =
+  async (
+    uid: string
+  ) => {
 
-  const userDoc = await db
-    .collection("users")
-    .doc(uid)
-    .get();
+    const userDoc =
+      await db
+        .collection("users")
+        .doc(uid)
+        .get();
 
-  if (!userDoc.exists) {
-    throw new Error("USER_NOT_FOUND");
-  }
+    if (!userDoc.exists) {
 
-  return userDoc.data() as User;
-};
+      throw new Error(
+        "USER_NOT_FOUND"
+      );
+
+    }
+
+    return userDoc.data() as User;
+
+  };
 
 /**
  * =========================================
  * Actualizar perfil
  * =========================================
  */
-export const updateUserProfile = async (
-  uid: string,
-  updates: Partial<User>
-) => {
+export const updateUserProfile =
+  async (
+    uid: string,
+    updates: Partial<User>
+  ) => {
 
-  /**
-   * Validar username único
-   */
-  if (updates.username) {
+    /**
+     * Validar username único
+     */
+    if (updates.username) {
 
-    const usernameQuery = await db
-      .collection("users")
-      .where(
-        "username",
-        "==",
-        updates.username.toLowerCase()
-      )
-      .get();
+      const usernameQuery =
+        await db
+          .collection("users")
+          .where(
+            "username",
+            "==",
+            updates.username.toLowerCase()
+          )
+          .get();
 
-    if (!usernameQuery.empty) {
+      if (!usernameQuery.empty) {
 
-      const existingDoc = usernameQuery.docs[0];
+        const existingDoc =
+          usernameQuery.docs[0];
 
-      /**
-       * Permitir mismo usuario
-       */
-      if (existingDoc.id !== uid) {
-        throw new Error("USERNAME_ALREADY_EXISTS");
+        if (
+          existingDoc.id !== uid
+        ) {
+
+          throw new Error(
+            "USERNAME_ALREADY_EXISTS"
+          );
+
+        }
+
       }
+
+      updates.username =
+        updates.username.toLowerCase();
+
     }
 
-    updates.username =
-      updates.username.toLowerCase();
-  }
+    /**
+     * Actualizar usuario
+     */
+    await db
+      .collection("users")
+      .doc(uid)
+      .update({
+        ...updates,
+        updatedAt:
+          new Date(),
+      });
 
-  /**
-   * Actualizar usuario
-   */
-  await db
-    .collection("users")
-    .doc(uid)
-    .update({
-      ...updates,
-      updatedAt: new Date(),
-    });
+    return await getUserByUID(uid);
 
-  return await getUserByUID(uid);
-};
+  };
 
 /**
  * =========================================
@@ -420,42 +559,66 @@ export const deleteUser = async (
     .deleteUser(uid);
 
   return {
-    message: "User deleted successfully",
+    message:
+      "User deleted successfully",
   };
+
 };
 
 /**
  * =========================================
- * Verificar disponibilidad de email
+ * Verificar disponibilidad email
  * =========================================
  */
-export const checkEmailAvailability = async (
-  email: string
-): Promise<{ available: boolean }> => {
-  const userQuery = await db
-    .collection("users")
-    .where("email", "==", email)
-    .get();
+export const checkEmailAvailability =
+  async (
+    email: string
+  ): Promise<{
+    available: boolean;
+  }> => {
 
-  return {
-    available: userQuery.empty,
+    const userQuery =
+      await db
+        .collection("users")
+        .where(
+          "email",
+          "==",
+          email
+        )
+        .get();
+
+    return {
+      available:
+        userQuery.empty,
+    };
+
   };
-};
 
 /**
  * =========================================
- * Verificar disponibilidad de username
+ * Verificar disponibilidad username
  * =========================================
  */
-export const checkUsernameAvailability = async (
-  username: string
-): Promise<{ available: boolean }> => {
-  const usernameQuery = await db
-    .collection("users")
-    .where("username", "==", username.toLowerCase())
-    .get();
+export const checkUsernameAvailability =
+  async (
+    username: string
+  ): Promise<{
+    available: boolean;
+  }> => {
 
-  return {
-    available: usernameQuery.empty,
+    const usernameQuery =
+      await db
+        .collection("users")
+        .where(
+          "username",
+          "==",
+          username.toLowerCase()
+        )
+        .get();
+
+    return {
+      available:
+        usernameQuery.empty,
+    };
+
   };
-};

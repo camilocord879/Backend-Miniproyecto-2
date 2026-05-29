@@ -5,18 +5,17 @@ import {
   deleteAccount,
   getAllUsers,
 } from "../services/user.service";
-import { AuthRequest } from "../auth/auth.middleware";
 
 /**
  * GET /users/me
  * Obtener perfil del usuario autenticado
  */
 export const getProfile = async (
-  req: AuthRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    const uid = req.uid;
+    const uid = req.user.uid;
 
     if (!uid) {
       return res.status(401).json({
@@ -47,11 +46,11 @@ export const getProfile = async (
  * Actualizar perfil del usuario
  */
 export const updateMyProfile = async (
-  req: AuthRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    const uid = req.uid;
+    const uid = req.user.uid;
 
     if (!uid) {
       return res.status(401).json({
@@ -109,11 +108,11 @@ export const updateMyProfile = async (
  * Eliminar cuenta del usuario
  */
 export const deleteMyAccount = async (
-  req: AuthRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    const uid = req.uid;
+    const uid = req.user.uid;
 
     if (!uid) {
       return res.status(401).json({
