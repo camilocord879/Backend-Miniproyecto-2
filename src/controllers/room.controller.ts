@@ -57,7 +57,7 @@ export const getRooms = async (
   console.log("GET ROOMS ENTER");
   try {
 
-    const userId = req.user?.uid;
+    const userId = req.uid ?? req.user?.uid;
 
     if (!userId) {
       return res.status(401).json({
@@ -133,7 +133,7 @@ export const updateRoom = async (
 
     const { name } = req.body;
 
-    const userId = req.user?.uid;
+    const userId = req.uid ?? req.user?.uid;
 
     if (!userId) {
       return res.status(401).json({
@@ -194,7 +194,7 @@ export const deleteRoom = async (
 
     const id = String(req.params.id);
 
-    const userId = req.user?.uid;
+    const userId = req.uid ?? req.user?.uid;
 
     if (!userId) {
       return res.status(401).json({
@@ -247,7 +247,7 @@ export const joinRoom = async (
 
     const roomId = String(req.params.id);
 
-    const userId = req.user?.uid;
+    const userId = req.uid ?? req.user?.uid;
 
     if (!userId) {
       return res.status(401).json({
@@ -284,7 +284,7 @@ export const leaveRoom = async (
 
     const roomId = String(req.params.id);
 
-    const userId = req.user?.uid;
+    const userId = req.uid ?? req.user?.uid;
 
     if (!userId) {
       return res.status(401).json({
