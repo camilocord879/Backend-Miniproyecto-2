@@ -9,6 +9,30 @@ import { isInstitutionalEmail } from "../utils/isInstitutionalEmail";
 
 /**
  * =========================================
+ * Obtener usuario por UID
+ * =========================================
+ */
+export async function getUserByUID(
+  uid: string
+): Promise<User> {
+
+  const userDoc = await db
+    .collection("users")
+    .doc(uid)
+    .get();
+
+  if (!userDoc.exists) {
+    throw new Error(
+      "USER_NOT_FOUND"
+    );
+  }
+
+  return userDoc.data() as User;
+
+}
+
+/**
+ * =========================================
  * Registrar usuario manualmente
  * =========================================
  */
@@ -30,7 +54,6 @@ export const registerUser = async (
     { email, username }
   );
 
-}
   /**
    * Validar username único
    */
@@ -45,16 +68,18 @@ export const registerUser = async (
 
   if (!usernameQuery.empty) {
 
-    console.error(
-      "❌ Username already exists:",
-      username
-    );
-
     throw new Error(
       "USERNAME_ALREADY_EXISTS"
     );
 
   }
+  if (!isInstitutionalEmail(email)) {
+
+  throw new Error(
+    "INVALID_INSTITUTIONAL_EMAIL"
+  );
+
+}
 
   /**
    * Crear usuario Firebase Auth
@@ -70,11 +95,6 @@ export const registerUser = async (
         password,
       });
 
-    console.log(
-      "✅ User created in Firebase Auth:",
-      userRecord.uid
-    );
-
   } catch (error: any) {
 
     if (
@@ -82,21 +102,11 @@ export const registerUser = async (
       "auth/email-already-exists"
     ) {
 
-      console.error(
-        "❌ Email already exists:",
-        email
-      );
-
       throw new Error(
         "EMAIL_ALREADY_EXISTS"
       );
 
     }
-
-    console.error(
-      "❌ Firebase Auth error:",
-      error.message
-    );
 
     throw error;
 
@@ -131,34 +141,13 @@ export const registerUser = async (
   /**
    * Guardar perfil
    */
-  try {
-
-    await db
-      .collection("users")
-      .doc(userRecord.uid)
-      .set(userProfile);
-
-    console.log(
-      "✅ User profile saved:",
-      userRecord.uid
-    );
-
-  } catch (error: any) {
-
-    console.error(
-      "❌ Error saving profile:",
-      error.message
-    );
-
-    throw new Error(
-      "ERROR_SAVING_PROFILE"
-    );
-
-  }
+  await db
+    .collection("users")
+    .doc(userRecord.uid)
+    .set(userProfile);
 
   /**
    * Login automático
-   * Obtener ID TOKEN REAL
    */
   const loginResponse =
     await axios.post(
@@ -248,8 +237,9 @@ export const loginUser = async (
   } catch (error: any) {
 
     console.error(
-      error.response?.data
-    );
+  "LOGIN ERROR:",
+  error.response?.data || error.message
+);
 
     throw new Error(
       "INVALID_CREDENTIALS"
@@ -299,12 +289,17 @@ export const googleLogin = async (
   uid: string,
   email: string
 ) => {
+
   /**
-  * Validar correo institucional
-  */
+   * Validar correo institucional
+   */
   if (!isInstitutionalEmail(email)) {
 
-    throw new Error("INVALID_INSTITUTIONAL_EMAIL");
+    throw new Error(
+      "INVALID_INSTITUTIONAL_EMAIL"
+    );
+
+  }
 
   const userDoc = await db
     .collection("users")
@@ -346,9 +341,13 @@ export const googleLogin = async (
    * Usuario nuevo
    */
   return {
+
     needsUsername: true,
+
     uid,
+
     email,
+
   };
 
 };
@@ -449,36 +448,7 @@ export const completeGoogleProfile =
     };
 
   };
-
-/**
- * =========================================
- * Obtener usuario por UID
- * =========================================
- */
-export const getUserByUID =
-  async (
-    uid: string
-  ) => {
-
-    const userDoc =
-      await db
-        .collection("users")
-        .doc(uid)
-        .get();
-
-    if (!userDoc.exists) {
-
-      throw new Error(
-        "USER_NOT_FOUND"
-      );
-
-    }
-
-    return userDoc.data() as User;
-
-  };
-
-/**
+  /**
  * =========================================
  * Actualizar perfil
  * =========================================
@@ -489,9 +459,6 @@ export const updateUserProfile =
     updates: Partial<User>
   ) => {
 
-    /**
-     * Validar username único
-     */
     if (updates.username) {
 
       const usernameQuery =
@@ -526,9 +493,6 @@ export const updateUserProfile =
 
     }
 
-    /**
-     * Actualizar usuario
-     */
     await db
       .collection("users")
       .doc(uid)
@@ -551,24 +515,20 @@ export const deleteUser = async (
   uid: string
 ) => {
 
-  /**
-   * Eliminar Firestore
-   */
   await db
     .collection("users")
     .doc(uid)
     .delete();
 
-  /**
-   * Eliminar Firebase Auth
-   */
   await admin
     .auth()
     .deleteUser(uid);
 
   return {
+
     message:
       "User deleted successfully",
+
   };
 
 };
@@ -596,8 +556,10 @@ export const checkEmailAvailability =
         .get();
 
     return {
+
       available:
         userQuery.empty,
+
     };
 
   };
@@ -625,8 +587,10 @@ export const checkUsernameAvailability =
         .get();
 
     return {
+
       available:
         usernameQuery.empty,
+
     };
 
   };

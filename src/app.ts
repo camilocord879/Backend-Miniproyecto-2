@@ -6,6 +6,7 @@ import userRoutes from "./routes/user.route";
 import authRoutes from "./auth/auth.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 import roomRoutes from "./routes/room.route";
+import messageRoutes from "./routes/message.route";
 const app = express();
 
 app.use(cors());
@@ -15,6 +16,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/messages", messageRoutes);
 
 app.use(errorMiddleware);
 /**
