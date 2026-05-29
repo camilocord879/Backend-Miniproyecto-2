@@ -5,6 +5,7 @@ import { swaggerSpec } from "./docs/swagger";
 import userRoutes from "./routes/user.route";
 import authRoutes from "./auth/auth.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
+import roomRoutes from "./routes/room.route";
 const app = express();
 
 app.use(cors());
@@ -13,6 +14,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/rooms", roomRoutes);
 
 app.use(errorMiddleware);
 /**
