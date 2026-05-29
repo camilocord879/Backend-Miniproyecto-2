@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as roomController from "../controllers/room.controller";
 import { verifyFirebaseToken } from "../auth/auth.middleware";
+import * as messageController from "../controllers/message.controller";
 
 const router = Router();
 
@@ -221,5 +222,28 @@ router.post(
   verifyFirebaseToken,
   roomController.leaveRoom
 );
-
+/**
+ * @swagger
+ * /api/rooms/{id}/messages:
+ *   get:
+ *     summary: Get room messages
+ *     tags:
+ *       - Messages
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Messages retrieved successfully
+ */
+router.get(
+  "/:id/messages",
+  verifyFirebaseToken,
+  messageController.getRoomMessages
+);
 export default router;

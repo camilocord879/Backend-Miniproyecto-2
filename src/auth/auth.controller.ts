@@ -67,7 +67,17 @@ export const register = async (
         error: "Email already exists",
       });
     }
+    if (
+    error.message ===
+    "INVALID_INSTITUTIONAL_EMAIL"
+  )   {
 
+    return res.status(400).json({
+      error:
+        "Only institutional emails are allowed",
+  });
+
+}
     return res.status(500).json({
       error: "Internal server error",
     });
@@ -154,7 +164,17 @@ export const googleAuth = async (
         error: "Invalid token",
       });
     }
+    if (
+  error.message ===
+  "INVALID_INSTITUTIONAL_EMAIL"
+) {
 
+  return res.status(400).json({
+    error:
+      "Only institutional emails are allowed",
+  });
+
+}
     return res.status(500).json({
       error: "Internal server error",
     });
