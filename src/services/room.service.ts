@@ -5,19 +5,15 @@ import { Room } from "../models/room.model";
 export const createRoom = async (
   name: string,
   ownerId: string
-) => {
+): Promise<Room> => {
 
   const roomId = randomUUID();
 
   const room: Room = {
     id: roomId,
-
     name,
-
     ownerId,
-
     participants: [ownerId],
-
     createdAt: new Date(),
   };
 
@@ -28,6 +24,7 @@ export const createRoom = async (
 
   return room;
 };
+
 export const getRooms = async (
   userId: string
 ): Promise<Room[]> => {
@@ -37,12 +34,13 @@ export const getRooms = async (
     .where("ownerId", "==", userId)
     .get();
 
-  return snapshot.docs.map(doc => ({
+  return snapshot.docs.map((doc) => ({
     id: doc.id,
-    ...(doc.data() as Omit<Room, "id">)
+    ...(doc.data() as Omit<Room, "id">),
   }));
 
 };
+
 export const getRoomById = async (
   roomId: string
 ): Promise<Room | null> => {
@@ -58,34 +56,36 @@ export const getRoomById = async (
 
   return {
     id: doc.id,
-    ...(doc.data() as Omit<Room, "id">)
+    ...(doc.data() as Omit<Room, "id">),
   };
 
 };
+
 export const updateRoom = async (
   roomId: string,
   name: string
-) => {
+): Promise<Room> => {
 
   const roomRef = db
     .collection("rooms")
     .doc(roomId);
 
   await roomRef.update({
-    name
+    name,
   });
 
   const updatedDoc = await roomRef.get();
 
   return {
     id: updatedDoc.id,
-    ...(updatedDoc.data() as Omit<Room, "id">)  
+    ...(updatedDoc.data() as Omit<Room, "id">),
   };
 
 };
+
 export const deleteRoom = async (
   roomId: string
-) => {
+): Promise<void> => {
 
   await db
     .collection("rooms")
@@ -93,10 +93,11 @@ export const deleteRoom = async (
     .delete();
 
 };
+
 export const joinRoom = async (
   roomId: string,
   userId: string
-) => {
+): Promise<Room> => {
 
   const roomRef = db
     .collection("rooms")
@@ -108,31 +109,31 @@ export const joinRoom = async (
     throw new Error("Room not found");
   }
 
-  const roomData = roomDoc.data();
+  const roomData = roomDoc.data() as Room;
 
-  const participants =
-    roomData?.participants || [];
+  const participants = roomData.participants || [];
 
   if (!participants.includes(userId)) {
     participants.push(userId);
   }
 
   await roomRef.update({
-    participants
+    participants,
   });
 
   const updatedRoom = await roomRef.get();
 
   return {
     id: updatedRoom.id,
-    ...updatedRoom.data()
+    ...(updatedRoom.data() as Omit<Room, "id">),
   };
 
 };
+
 export const leaveRoom = async (
   roomId: string,
   userId: string
-) => {
+): Promise<Room> => {
 
   const roomRef = db
     .collection("rooms")
@@ -144,26 +145,22 @@ export const leaveRoom = async (
     throw new Error("Room not found");
   }
 
-  const roomData = roomDoc.data();
+  const roomData = roomDoc.data() as Room;
 
-  let participants =
-    roomData?.participants || [];
-
-  participants = participants.filter(
+  const participants = (roomData.participants || []).filter(
     (participantId: string) =>
       participantId !== userId
   );
 
   await roomRef.update({
-    participants
+    participants,
   });
 
-  const updatedRoom =
-    await roomRef.get();
+  const updatedRoom = await roomRef.get();
 
   return {
     id: updatedRoom.id,
-    ...updatedRoom.data()
+    ...(updatedRoom.data() as Omit<Room, "id">),
   };
 
 };
