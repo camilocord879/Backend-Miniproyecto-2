@@ -17,7 +17,9 @@ export const validateRegisterDTO = (data: any): RegisterDTO => {
     throw new Error("USERNAME_LENGTH_INVALID");
   }
 
-  if (!data.avatar || typeof data.avatar !== "string" || data.avatar.trim() === "") {
+  if (!data.avatar) {
+    data.avatar = "default-avatar";
+  } else if (typeof data.avatar !== "string" || data.avatar.trim() === "") {
     throw new Error("INVALID_AVATAR");
   }
 
@@ -33,7 +35,7 @@ export const validateRegisterDTO = (data: any): RegisterDTO => {
     names: data.names.trim(),
     lastNames: data.lastNames.trim(),
     username: data.username.trim(),
-    avatar: data.avatar.trim(),
+    avatar: data.avatar,
     email: data.email.trim().toLowerCase(),
     password: data.password,
   };
