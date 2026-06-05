@@ -65,6 +65,8 @@ export const getRoomMessages = async (
 
     const before = (req.query.before as string) || undefined;
 
+    console.log("GET MESSAGES:", { roomId, limit, before });
+
     const messages =
       await messageService.getRoomMessages(
         roomId,
@@ -72,11 +74,15 @@ export const getRoomMessages = async (
         before
       );
 
+    console.log("MESSAGES FOUND:", messages.length);
+
     return res.status(200).json(
       messages
     );
 
   } catch (error: unknown) {
+
+    console.error("GET MESSAGES ERROR:", error);
 
     if (error instanceof Error) {
 
