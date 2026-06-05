@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../auth/auth.middleware";
 import * as messageService from "../services/message.service";
+import { db } from "../config/firebase";
 
 export const createMessage = async (
   req: AuthRequest,
@@ -25,11 +26,24 @@ export const createMessage = async (
       });
     }
 
+    // Get sender name from users collection
+    let senderName = senderId;
+    try {
+      const userDoc = await db.collection("users").doc(senderId).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        senderName = userData?.username || userData?.names || senderId;
+      }
+    } catch {
+      // If we can't get the name, use senderId as fallback
+    }
+
     const message =
       await messageService.createMessage(
         roomId,
         senderId,
-        content.trim()
+        content.trim(),
+        senderName
       );
 
     return res.status(201).json(message);

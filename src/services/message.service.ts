@@ -5,12 +5,14 @@ import { Message } from "../models/message.model";
 export const createMessage = async (
   roomId: string,
   senderId: string,
-  content: string
+  content: string,
+  senderName?: string
 ): Promise<Message> => {
 
   const messageData = {
     roomId,
     senderId,
+    senderName: senderName || senderId,
     content,
     createdAt: new Date()
   };
