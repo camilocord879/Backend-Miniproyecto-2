@@ -28,22 +28,29 @@ export const createMessage = async (
   };
 
 };
+
 export const getRoomMessages = async (
-  roomId: string
+  roomId: string,
+  limit: number = 30,
+  before?: string
 ) => {
 
-  const snapshot = await db
+  let query = db
     .collection("messages")
-    .where(
-      "roomId",
-      "==",
-      roomId
-    )
-    .orderBy(
-      "createdAt",
-      "asc"
-    )
-    .get();
+    .where("roomId", "==", roomId)
+    .orderBy("createdAt", "desc");
+
+  // If a cursor is provided, get messages older than that timestamp
+  if (before) {
+    const cursorDoc = await db.collection("messages").doc(before).get();
+    if (cursorDoc.exists) {
+      query = query.startAfter(cursorDoc);
+    }
+  }
+
+  query = query.limit(limit);
+
+  const snapshot = await query.get();
 
   const messages = snapshot.docs.map(
     (doc) => ({
@@ -52,6 +59,7 @@ export const getRoomMessages = async (
     })
   );
 
-  return messages;
+  // Return in chronological order (oldest first)
+  return messages.reverse();
 
 };

@@ -56,13 +56,20 @@ export const getRoomMessages = async (
 
   try {
 
-    const roomId = String(
-      req.params.id
+    const roomId = String(req.params.id);
+
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit as string) || 30, 1),
+      100
     );
+
+    const before = (req.query.before as string) || undefined;
 
     const messages =
       await messageService.getRoomMessages(
-        roomId
+        roomId,
+        limit,
+        before
       );
 
     return res.status(200).json(

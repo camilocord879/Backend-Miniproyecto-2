@@ -263,6 +263,11 @@ export const joinRoom = async (
   } catch (error: unknown) {
 
     if (error instanceof Error) {
+      if (error.message === "Room not found") {
+        return res.status(404).json({
+          error: "La sala no fue encontrada. Verifica el ID e intenta de nuevo."
+        });
+      }
       return res.status(500).json({
         error: error.message
       });
